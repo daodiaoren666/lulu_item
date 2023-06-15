@@ -11,6 +11,7 @@ import com.lulu.usercenter.model.domain.User;
 import com.lulu.usercenter.model.domain.UserTeam;
 import com.lulu.usercenter.model.dto.TeamQuery;
 import com.lulu.usercenter.model.enums.TeamStatusEnum;
+import com.lulu.usercenter.model.request.TeamQuitRequest;
 import com.lulu.usercenter.model.request.TeamUpdateRequest;
 import com.lulu.usercenter.model.request.UserJoinTeamRequest;
 import com.lulu.usercenter.model.vo.TeamUserVo;
@@ -19,11 +20,11 @@ import com.lulu.usercenter.service.TeamService;
 import com.lulu.usercenter.service.UserService;
 import com.lulu.usercenter.service.UserTeamService;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.beans.BeanUtils;
 
 import org.springframework.stereotype.Service;
@@ -31,8 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.Date;
-import java.util.Optional;
 
 /**
 * @author 24174
@@ -197,7 +196,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if(teamUpdateRequest==null){
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Integer id = teamUpdateRequest.getId();
+        Long id = teamUpdateRequest.getId();
         if(id==null||id<=0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -205,9 +204,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if(oldTeam==null){
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
-        Long id1 = loginUser.getId();
-        Long userId = oldTeam.getUserId();
-        if(loginUser.getId()!=oldTeam.getUserId()&&!userService.isAdmin(loginUser)){
+        if(!Objects.equals(loginUser.getId(), oldTeam.getUserId()) &&!userService.isAdmin(loginUser)){
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
         Integer status = teamUpdateRequest.getStatus();
@@ -280,6 +277,75 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         userTeam.setTeamId(teamId);
         userTeam.setJoinTime(new Date());
        return userTeamService.save(userTeam);
+    }
+
+    /**
+     * 用户退出队伍
+     * @param teamQuitRequest
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean quitTeam(TeamQuitRequest teamQuitRequest, User loginUser) {
+        if(teamQuitRequest==null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Long teamId = teamQuitRequest.getTeamId();
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //检验我是否已加入队伍
+        Long userId = loginUser.getId();
+        UserTeam userTeam = new UserTeam();
+        userTeam.setTeamId(teamId);
+        userTeam.setUserId(userId);
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>(userTeam);
+        long count = userTeamService.count(queryWrapper);
+        if (count == 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "未加入队伍");
+        }
+        long hasTeamNum = this.countTeamUserByTeamId(teamId);
+        //如果队伍只剩下一个人 队伍解散
+        if (hasTeamNum == 1) {
+            //删除队伍用户表
+            this.removeById(teamId);
+            return userTeamService.remove(queryWrapper);
+        }
+        //怎么判断是不是队长呢？
+        //在这先假定创建者就是队长  没用房主的概念  如果队长退出了 则顺位转交下一位
+        //如果是队长
+        if (userId.equals(team.getUserId()) ) {
+            LambdaQueryWrapper<UserTeam> userTeamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            //权力转移第二早加入的用户
+            userTeamLambdaQueryWrapper.eq(UserTeam::getTeamId, teamId);
+            userTeamLambdaQueryWrapper.last("order by id asc  limit 2");
+            List<UserTeam> userTeamList = userTeamService.list(userTeamLambdaQueryWrapper);
+            if (CollectionUtils.isEmpty(userTeamList) || userTeamList.size() <= 1) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+            }
+            UserTeam nextUserTeam = userTeamList.get(1);
+            Long nextTeamLeaderId = nextUserTeam.getUserId();
+            //变更当前的队长
+            Team updateTeam = new Team();
+            updateTeam.setId(teamId);
+            updateTeam.setUserId(nextTeamLeaderId);
+            boolean result = this.updateById(updateTeam);
+            if (!result) {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "变更队长失败");
+            }
+        }
+          //移除关系
+        return userTeamService.remove(queryWrapper);
+    }
+
+    private long countTeamUserByTeamId(Long teamId) {
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>();;
+        queryWrapper.eq("teamId", teamId);
+     return    userTeamService.count(queryWrapper);
     }
 
 

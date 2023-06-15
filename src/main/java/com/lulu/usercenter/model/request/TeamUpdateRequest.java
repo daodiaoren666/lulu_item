@@ -6,7 +6,7 @@ import java.util.Date;
 
 @Data
 public class TeamUpdateRequest {
-    private  Integer id;
+    private  Long id;
     /**
      * 队伍名称
      */

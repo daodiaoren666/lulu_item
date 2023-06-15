@@ -1,10 +1,10 @@
 package com.lulu.usercenter.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.lulu.usercenter.common.BaseResponse;
 import com.lulu.usercenter.model.domain.Team;
 import com.lulu.usercenter.model.domain.User;
 import com.lulu.usercenter.model.dto.TeamQuery;
+import com.lulu.usercenter.model.request.TeamQuitRequest;
 import com.lulu.usercenter.model.request.TeamUpdateRequest;
 import com.lulu.usercenter.model.request.UserJoinTeamRequest;
 import com.lulu.usercenter.model.vo.TeamUserVo;
@@ -25,4 +25,6 @@ public interface TeamService extends IService<Team> {
     boolean updateTeam(TeamUpdateRequest teamUpdateRequest,User loginUser);
 
     boolean JoinTeam(UserJoinTeamRequest userJoinTeamRequest, User loginUser);
+
+    boolean quitTeam(TeamQuitRequest teamQuitRequest, User loginUser);
 }

@@ -11,6 +11,7 @@ import com.lulu.usercenter.model.domain.Team;
 import com.lulu.usercenter.model.domain.User;
 import com.lulu.usercenter.model.dto.TeamQuery;
 import com.lulu.usercenter.model.request.TeamAddRequest;
+import com.lulu.usercenter.model.request.TeamQuitRequest;
 import com.lulu.usercenter.model.request.TeamUpdateRequest;
 import com.lulu.usercenter.model.request.UserJoinTeamRequest;
 import com.lulu.usercenter.model.vo.TeamUserVo;
@@ -143,7 +144,7 @@ public BaseResponse<List<TeamUserVo>>  listTeam(TeamQuery teamQuery,HttpServletR
      * @return
      */
     @PostMapping("/join")
-    public BaseResponse<Boolean> JoinTeam( UserJoinTeamRequest userJoinTeamRequest,HttpServletRequest request){
+    public BaseResponse<Boolean> joinTeam( UserJoinTeamRequest userJoinTeamRequest,HttpServletRequest request){
             if(userJoinTeamRequest==null){
                 throw new BusinessException(ErrorCode.PARAMS_ERROR);
             }
@@ -151,5 +152,14 @@ public BaseResponse<List<TeamUserVo>>  listTeam(TeamQuery teamQuery,HttpServletR
         boolean result = teamService.JoinTeam(userJoinTeamRequest, loginUser);
         return ResultUtils.success(result);
     }
+   @PostMapping("/quit")
+    public BaseResponse<Boolean>  quitTeam(@RequestBody TeamQuitRequest teamQuitRequest, HttpServletRequest request){
+        if(teamQuitRequest==null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+       boolean result = teamService.quitTeam(teamQuitRequest, loginUser);
+       return  ResultUtils.success(result);
+   }
 
 }
