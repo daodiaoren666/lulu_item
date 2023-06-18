@@ -70,6 +70,11 @@ public class Team implements Serializable {
     @TableLogic
     private Integer isDelete;
 
+    /**
+     * 队伍头像
+     */
+    private String avatarUrl;
+
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }

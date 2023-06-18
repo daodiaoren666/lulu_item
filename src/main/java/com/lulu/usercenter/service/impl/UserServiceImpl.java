@@ -120,6 +120,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userPassword.length() < 8) {
             return null;
         }
+
         // 账户不能包含特殊字符
         String validPattern = "[`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]";
         Matcher matcher = Pattern.compile(validPattern).matcher(userAccount);

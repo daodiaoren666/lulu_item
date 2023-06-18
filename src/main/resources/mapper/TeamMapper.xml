@@ -5,40 +5,24 @@
 <mapper namespace="com.lulu.usercenter.mapper.TeamMapper">
 
     <resultMap id="BaseResultMap" type="com.lulu.usercenter.model.domain.Team">
-        <id property="id" column="id" jdbcType="BIGINT"/>
-        <result property="name" column="name" jdbcType="VARCHAR"/>
-        <result property="description" column="description" jdbcType="VARCHAR"/>
-        <result property="maxNum" column="maxNum" jdbcType="INTEGER"/>
-        <result property="expireTime" column="expireTime" jdbcType="TIMESTAMP"/>
-        <result property="userId" column="userId" jdbcType="BIGINT"/>
-        <result property="status" column="status" jdbcType="INTEGER"/>
-        <result property="password" column="password" jdbcType="VARCHAR"/>
-        <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
-        <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
-        <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="maxNum" column="maxNum" jdbcType="INTEGER"/>
+            <result property="expireTime" column="expireTime" jdbcType="TIMESTAMP"/>
+            <result property="userId" column="userId" jdbcType="BIGINT"/>
+            <result property="status" column="status" jdbcType="INTEGER"/>
+            <result property="password" column="password" jdbcType="VARCHAR"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+            <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+            <result property="avatarUrl" column="avatarUrl" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id
-        ,name,description,
+        id,name,description,
         maxNum,expireTime,userId,
         status,password,createTime,
-        updateTime,isDelete
+        updateTime,isDelete,avatarUrl
     </sql>
-
-    <select id="selectTeamUserList" resultType="com.lulu.usercenter.model.domain.User">
-        select u.id,
-               u.username,
-               u.userAccount,
-               u.avatarUrl,
-               u.tags,
-               u.planetCode,
-               u.email,
-               u.gender,
-               u.phone
-        from team t
-                 left join user_team ut on t.id = UT.teamId
-                 left join user u on ut.userId = u.id
-        where t.id = #{teamId}
-    </select>
 </mapper>

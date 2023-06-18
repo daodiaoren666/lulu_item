@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.lulu.usercenter.model.request.PageRequest;
+import java.util.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -22,6 +23,10 @@ public class TeamQuery  extends PageRequest   {
      * 搜索关键词  (对名称和描述搜索)
      */
     private String searchText;
+    /**
+     * 队伍id集合
+     */
+    private List<Long> listId;
     /**
      * 队伍名称
      */
