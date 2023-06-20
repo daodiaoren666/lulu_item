@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static com.lulu.usercenter.contant.UserConstant.USER_LOGIN_STATE;
@@ -150,6 +152,14 @@ public class UserController {
         int result = userService.userUpdate(user, loginUser);
         return  ResultUtils.success(result);
     }
-
+    @GetMapping("/match")
+    public BaseResponse<List<User>> matchUsers(long num,HttpServletRequest request) {
+        if(num<=0||num>20){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = userService.getLoginUser(request);
+        //key表示列表id
+        return ResultUtils.success( userService.matchUsers(num,user));
+    }
 
 }

@@ -9,11 +9,15 @@ import com.google.gson.reflect.TypeToken;
 import com.lulu.usercenter.common.ErrorCode;
 import com.lulu.usercenter.exception.BusinessException;
 import com.lulu.usercenter.model.domain.User;
+import com.lulu.usercenter.ocne.AlgorithmUtils;
 import com.lulu.usercenter.service.UserService;
 import com.lulu.usercenter.mapper.UserMapper;
 
+import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.method.MethodDescription;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.util.Pair;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
@@ -22,10 +26,7 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,7 +50,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Resource
     private UserService userService;
     @Resource
-    private RedisTemplate<String,Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     /**
      * 盐值，混淆密码
      */
@@ -198,10 +199,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         //查询要修改的用户id 是否存在
         User oldUser = userMapper.selectById(userId);
-        if(oldUser==null){
+        if (oldUser == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
-       return   userMapper.updateById(user);
+        return userMapper.updateById(user);
 
     }
 
@@ -303,32 +304,91 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 使用redis缓存获取推荐用户列表
+     *
      * @param pageSize
      * @param pageNum
      * @param request
      * @return
      */
     @Override
-    public Page<User> RedisRecommendUser(long pageSize, long pageNum,HttpServletRequest request) {
+    public Page<User> RedisRecommendUser(long pageSize, long pageNum, HttpServletRequest request) {
         //获取当前用户
         User loginUser = userService.getLoginUser(request);
         String RedisKey = String.format("lulu:user:recommend:userId:%s", loginUser.getId());
         ValueOperations<String, Object> opsForValue = redisTemplate.opsForValue();
         //如果有缓存 直接读取缓存
         Page<User> userPage = (Page<User>) opsForValue.get(RedisKey);
-        if(userPage!=null){
+        if (userPage != null) {
             return userPage;
         }
         //如果没有缓存  从数据库中获取 并插入缓存信息
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        userPage = userService.page(new Page<>(pageNum, pageSize),queryWrapper);
+        userPage = userService.page(new Page<>(pageNum, pageSize), queryWrapper);
         //写缓存
         try {
-            opsForValue.set(RedisKey,userPage,30000, TimeUnit.MILLISECONDS);
+            opsForValue.set(RedisKey, userPage, 30000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            log.info("redis set key err",e);
+            log.info("redis set key err", e);
         }
-           return userPage;
+        return userPage;
+    }
+
+    @Override
+    public List<User> matchUsers(long num, User loginUser) {
+        //获取所有用户
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+        userQueryWrapper.select("id", "tags");
+        userQueryWrapper.isNotNull("tags");
+        List<User> userList = this.list(userQueryWrapper);
+        String tags = loginUser.getTags();
+        Gson gson = new Gson();
+        //JSON数组转为反序列化
+
+        List<String> tagList = gson.fromJson(tags, new TypeToken<List<String>>() {
+        }.getType());
+        //用户列表的下表=>相似度
+        List<Pair<User, Long>> list = new ArrayList<>();
+//        SortedMap<Integer,Integer> indexDistanceMap=new TreeMap<>();
+        for (int i = 0; i < userList.size(); i++) {
+            User user = userList.get(i);
+
+            String userTags = user.getTags();
+            if (StringUtils.isBlank(userTags) || Objects.equals(user.getId(), loginUser.getId())) {
+                continue;
+            }
+            //计算分数
+            List<String> userTagsList = gson.fromJson(userTags, new TypeToken<List<String>>() {
+            }.getType());
+            Long distance = AlgorithmUtils.minDistance(tagList, userTagsList);
+//            indexDistanceMap.put(i,distance);
+            list.add(new Pair<>(user, distance));
+        }
+
+        List<Pair<User, Long>> userSortList = list.stream()
+                .sorted((a, b) -> (int) (a.getValue() - b.getValue()))
+                .collect(Collectors.toList());
+
+        List<Long> userIdList = userSortList.stream()
+                .map(pair -> pair.getKey().getId())
+                .limit(num).collect(Collectors.toList());
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id", userIdList);
+        Map<Long, List<User>> userOrderList = this.list(queryWrapper)
+                .stream().map(this::getSafetyUser)
+                .collect(Collectors.groupingBy(User::getId));
+        List<User> finalUserList = new ArrayList<>();
+        for (Long userId : userIdList) {
+            finalUserList.add(userOrderList.get(userId).get(0));
+        }
+        return finalUserList;
+        //第二种方法  
+//        List<Integer> indexList = new ArrayList<>();;
+//        List<Map.Entry<Integer, Integer>> entryList = indexDistanceMap.entrySet().stream().sorted((o1, o2) -> o1.getValue() - o2.getValue()).limit(num).collect(Collectors.toList());
+//        for (Map.Entry<Integer, Integer> integerEntry : entryList) {
+//          indexList.add(integerEntry.getKey()) ;
+////        }
+//        return indexList.stream()
+//                .map(index -> getSafetyUser(userList.get(index))).collect(Collectors.toList());
     }
 
 }

@@ -67,4 +67,5 @@ public interface UserService extends IService<User> {
     boolean isAdmin( User loginUser) ;
     Page<User> RedisRecommendUser(long pageSize,long pageNum,HttpServletRequest request);
 
+    List<User> matchUsers(long num, User user);
 }
